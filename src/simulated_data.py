@@ -1,49 +1,75 @@
-import pandas as pd
+# src/simulated_data.py
+"""
+Generate synthetic policy IDs, credit-card numbers, and expiry dates
+for tokenisation demos or tests.
+"""
+from __future__ import annotations
 import random
 from datetime import datetime, timedelta
-from credit_card_tokenisation.src.logger_config import setup_logger
-import warnings
-from tqdm import tqdm
+import pandas as pd
+from src.logger_config import setup_logger
 
-tqdm.pandas()
-warnings.filterwarnings('ignore')
+
+POLICY_LEN   = 9
+PAN_LENGTHS  = (14, 15, 16)
+EXPIRY_YEARS = 5
+
 logger = setup_logger(__name__)
 
-def create_data_to_be_tokenised(sample_size):
-    """ The module is used to generate dummy data for use in the tokenisation program demonstration.
-        It generates: policy id's, credit card numbers and expiration dates, and converts the information from a
-        dictionary to a dataframe which is then used for processing.
+
+def create_data_to_be_tokenised(sample_size: int, seed: int | None = None) -> pd.DataFrame:
     """
-    logger.info(f'******** : Create Sample Data : ********')
-    sample = sample_size
-    records = generate_bulk(sample)
-    cc_numbers_to_tokenise = pd.DataFrame(records)
-    logger.debug(f'Total Records Generated: {len(cc_numbers_to_tokenise)}')
-    logger.debug(cc_numbers_to_tokenise.head(10))
-    return cc_numbers_to_tokenise
+    Generate sample_size dummy records.
+    :param sample_size: Number of rows to create
+    :param seed: Optional RNG seed for reproducible tests
+    :return: DataFrame with columns policy_id, credit_card_number, expiration_date
+    """
+    if seed is not None:
+        random.seed(seed)
 
-def generate_policy_id():
-    """Generate a random 9-digit policy ID."""
-    return ''.join(random.choices('0123456789', k=9))
+    records = _generate_bulk(sample_size)
+    df = pd.DataFrame(records)
+    logger.debug("Generated %d rows\n%s", len(df), df.head(5).to_string(index=False))
+    return df
 
-def generate_credit_card_number():
-    """Generate a random credit card number (14–16 digits)."""
-    length = random.choice([14, 15, 16])
-    return ''.join(random.choices('0123456789', k=length))
 
-def generate_expiration_date():
-    """Generate a future expiration date in MM/YY format (within 5 years)."""
-    today = datetime.today()
-    future_date = today + timedelta(days=random.randint(365, 5 * 365))
-    return future_date.strftime("%m/%y")
+# ---------- helpers ----------
 
-def generate_bulk(count=1000):
-    """Generate a list of dictionaries with policy ID, credit card number, and expiration date."""
+def _generate_policy_id() -> str:
+    """
+    Generate a random policy ID with a length of 9 digits.
+    """
+    return ''.join(random.choices('0123456789', k=POLICY_LEN))
+
+
+def _generate_credit_card_number() -> str:
+    """
+    Generate a random credit card number with a length of 14, 15, or 16 digits.
+    :return: Credit card number as a string
+    """
+    return ''.join(random.choices('0123456789', k=random.choice(PAN_LENGTHS)))
+
+
+def _generate_expiration_date() -> str:
+    """
+    Generate a random expiration date in the format MM/YY.
+    :return: Expiration date as a string in the format MM/YY
+    """
+    future = datetime.today() + timedelta(days=random.randint(365, EXPIRY_YEARS * 365))
+    return future.strftime("%m/%y")
+
+
+def _generate_bulk(count: int) -> list[dict[str, str]]:
+    """
+    Generate a list of dictionaries with dummy data.
+    :param count: Number of records to generate
+    :return: List of dictionaries with keys policy_id, credit_card_number, expiration_date
+    """
     return [
         {
-            'policy_id': generate_policy_id(),
-            'credit_card_number': generate_credit_card_number(),
-            'expiration_date': generate_expiration_date()
+            "policy_id": _generate_policy_id(),
+            "credit_card_number": _generate_credit_card_number(),
+            "expiration_date": _generate_expiration_date(),
         }
         for _ in range(count)
     ]

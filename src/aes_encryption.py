@@ -1,60 +1,98 @@
+# src/aes_encryption.py
+"""
+
+"""
+from __future__ import annotations
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
-from logger_config import setup_logger
-import warnings
+from .logger_config import setup_logger
 from tqdm import tqdm
 import os
 import base64
+from typing import ByteString
+import pandas as pd
 
 tqdm.pandas()
-warnings.filterwarnings('ignore')
 logger = setup_logger(__name__)
 
+BLOCK_SIZE = 128
+IV_BYTES: int = BLOCK_SIZE // 8
+KEY_BYTES: int = 32
 
-def aes_cc_tokenisation(cc_numbers_to_tokenise):
+
+def aes_cc_tokenisation(cc_numbers_to_tokenise: pd.DataFrame) -> pd.DataFrame:
+    """
+    Function to tokenise credit card numbers using AES encryption.
+    :param cc_numbers_to_tokenise: DataFrame containing credit card numbers to be tokenised
+    :return: DataFrame with tokenised credit card numbers
+    """
     logger.info(f'******** : AES Tokenisation : ********')
-    cc_numbers_to_tokenise['aes_token'] = cc_numbers_to_tokenise['clean_credit_card_number'].apply(lambda x: encrypt_cc_number(x))
-    logger.debug(cc_numbers_to_tokenise[['credit_card_number','clean_credit_card_number','aes_token']].head(10))
+    cc_numbers_to_tokenise['aes_token'] = cc_numbers_to_tokenise[
+        'clean_credit_card_number'].apply(lambda x: encrypt_cc_number(x))
+    logger.debug(cc_numbers_to_tokenise[[
+        'credit_card_number','clean_credit_card_number','aes_token']].head(10))
     return cc_numbers_to_tokenise
 
-def encrypt_cc_number(cc_number: str) -> str:
-    key = os.urandom(16)
-    # Convert to bytes
-    data = cc_number.encode()
 
-    # Pad the data
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(data) + padder.finalize()
+def encrypt_cc_number(cc_number: str, key: ByteString | bytes | bytearray | None = None) -> str:
+    """
+    Encrypts a credit card number using AES encryption.
+    :param cc_number: Credit card number to encrypt
+    :param key: Key used for encryption
+    :return: Encrypted credit card number as a base64 encoded string
+    """
+    if key is None:
+        key = os.urandom(KEY_BYTES)
+        return_with_key = True
+    else:
+        if len(key) not in {16, 24, 32, KEY_BYTES}:
+            raise ValueError("Key length must be 16, 24 or 32 bytes for AES.")
+        return_with_key = False
 
-    # Generate a random IV for each encryption
-    iv = os.urandom(16)
+    # Pad data
+    padder = padding.PKCS7(BLOCK_SIZE).padder()
+    padded = padder.update(cc_number.encode()) + padder.finalize()
 
-    # Create AES cipher
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-    encrypted = encryptor.update(padded_data) + encryptor.finalize()
+    # Fresh IV per encryption
+    iv = os.urandom(IV_BYTES)
 
-    cc_token = base64.b64encode(iv + encrypted).decode()
+    # AES-CBC encrypt
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
 
-    # Return base64 encoded (IV + encrypted data)
-    return cc_token
+    ciphertext = cipher.encryptor().update(padded) + cipher.encryptor().finalize()
 
-def decrypt_cc_number(token, key):
-    # Decode base64
+    token = base64.b64encode(iv + ciphertext).decode()
+    if return_with_key:
+        token += "|" + base64.b64encode(key).decode()
+        logger.warning("Key returned in token – for demo use only!")
+
+    return token
+
+
+def decrypt_cc_number(token: str, key: ByteString | bytes | bytearray) -> str:
+    """
+    Decrypts a tokenised credit card number using AES decryption.
+    :param token: Tokenised credit card number to decrypt
+    :param key: Key used for decryption
+    :return: Decrypted plain text credit card number
+    """
     token_bytes = base64.b64decode(token)
+    iv, ciphertext = token_bytes[:IV_BYTES], token_bytes[IV_BYTES:]
 
-    # Extract IV and encrypted data
-    iv = token_bytes[:16]
-    encrypted_data = token_bytes[16:]
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
 
-    # Create cipher
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()
-    decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
+    padded = decryptor.update(ciphertext) + decryptor.finalize()
 
-    # Remove padding
-    unpadder = padding.PKCS7(128).unpadder()
-    decrypted = unpadder.update(decrypted_padded) + unpadder.finalize()
-
-    return decrypted.decode()
+    unpadder = padding.PKCS7(BLOCK_SIZE).unpadder()
+    data = unpadder.update(padded) + unpadder.finalize()
+    return data.decode()

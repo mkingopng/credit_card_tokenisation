@@ -1,9 +1,12 @@
-logging
-colorlog
+logging~=0.4.9.6
+colorlog~=6.9.0
 random
-pandas
+pandas~=2.2.3
 datetime
 cryptography.hazmat.primitives.ciphers
 os
 base64
-pyffx
+pyffx~=0.3.0
+tqdm~=4.67.1
+cryptography~=44.0.2
+pytest~=8.3.5
