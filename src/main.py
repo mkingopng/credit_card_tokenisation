@@ -22,126 +22,125 @@
     FF1 / FF3: NIST-approved algorithms for FPE over strings/numbers
     Feistel networks: for splitting and recombining data in predictable formats
 """
-import pandas as pd
-from src import simulated_data
-from src.logger_config import setup_logger
-from src import aes_encryption
-from src import fpe_encryption
-from tqdm import tqdm
 import warnings
 
+import pandas as pd
+from tqdm import tqdm
+
+from src import aes_encryption, fpe_encryption, simulated_data
+from src.logger_config import setup_logger
+
 tqdm.pandas()
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 logger = setup_logger(__name__)
-FPE_KEY = b'mysecretkey12345'  # FPE Encryption Key
+FPE_KEY = b"mysecretkey12345"  # FPE Encryption Key
 
 
-def data_exploration(
-        cc_numbers_to_tokenise: pd.DataFrame
-) -> str:
+def data_exploration(cc_numbers_to_tokenise: pd.DataFrame) -> str:
     """
     Validate policy IDs & credit‑card numbers and report a status string.
     :param cc_numbers_to_tokenise: DataFrame containing raw inputs
     :return: ``"Errors"`` if any issues detected, otherwise ``"No_Errors"``
     """
-    logger.info(f'******** : Checking Data to Tokenise : ********')
+    logger.info("******** : Checking Data to Tokenise : ********")
     invalid_pol = policy_id_checks(cc_numbers_to_tokenise)
     invalid_cc = cc_number_checks(cc_numbers_to_tokenise)
     total_rows_with_special = check_special_characters(cc_numbers_to_tokenise)
 
     if len(invalid_pol) != 0 or len(invalid_cc) != 0 or total_rows_with_special != 0:
-        status = 'Errors'
+        status = "Errors"
     else:
-        status = 'No_Errors'
+        status = "No_Errors"
     return status
 
 
-def policy_id_checks(
-        data: pd.DataFrame
-) -> list:
+def policy_id_checks(data: pd.DataFrame) -> list:
     """
     Check the character length of each field in all records.
     :param data: DataFrame containing the data to be checked
     :return: List of indices of records with invalid policy IDs
     """
-    logger.info(f'----- : Policy ID Checks : -----')
+    logger.info("----- : Policy ID Checks : -----")
     invalid_pol = []
     for index, row in data.iterrows():
-        pol_len = len(row['policy_id'])
+        pol_len = len(row["policy_id"])
         if pol_len != 9:
             invalid_pol.append(index)
 
     if len(invalid_pol) > 0:
         logger.warning(invalid_pol)
     else:
-        logger.debug('No data length issues found')
+        logger.debug("No data length issues found")
     return invalid_pol
 
 
-def cc_number_checks(
-        data: pd.DataFrame
-) -> list:
+def cc_number_checks(data: pd.DataFrame) -> list:
     """
     Check the character length of each field in all records.
     :param data: DataFrame containing the data to be checked
     :return: List of indices of records with invalid credit card numbers
     """
-    logger.info(f'----- : Credit Card Checks : -----')
+    logger.info("----- : Credit Card Checks : -----")
     invalid_cc = []
     for index, row in data.iterrows():
-        cc_len = len(row['credit_card_number'])
+        cc_len = len(row["credit_card_number"])
         if cc_len < 16:
             invalid_cc.append(index)
 
     # If Errors Found Report
     if len(invalid_cc) > 0:
         # logger.warning(invalid_cc)
-        logger.debug(f'Total CC Length Errors: {len(invalid_cc)}')
+        logger.debug(f"Total CC Length Errors: {len(invalid_cc)}")
     else:
-        logger.debug('No data length issues found')
+        logger.debug("No data length issues found")
     return invalid_cc
 
 
-def check_special_characters(
-        data: pd.DataFrame
-) -> list:
+def check_special_characters(data: pd.DataFrame) -> list:
     """
     Check for special characters in 'policy_id' and 'credit_card_number' fields.
     :param data: DataFrame containing the data to be checked
     :return: List of indices of records with special characters
     """
-    logger.info(f'----- : Checking for Special Characters : -----')
-    special_char_pattern = r'[^A-Za-z0-9]'
+    logger.info("----- : Checking for Special Characters : -----")
+    special_char_pattern = r"[^A-Za-z0-9]"
     # Check for special characters in 'policy_id' and 'credit_card_number'
-    data['policy_id_has_special'] = data['policy_id'].str.contains(special_char_pattern)
-    data['card_has_special'] = data['credit_card_number'].str.contains(special_char_pattern)
+    data["policy_id_has_special"] = data["policy_id"].str.contains(special_char_pattern)
+    data["card_has_special"] = data["credit_card_number"].str.contains(
+        special_char_pattern
+    )
 
     # Count of rows with special characters in each column
-    policy_id_special_count = data['policy_id_has_special'].sum()
-    card_special_count = data['card_has_special'].sum()
+    policy_id_special_count = data["policy_id_has_special"].sum()
+    card_special_count = data["card_has_special"].sum()
 
     # Total rows with special characters in either field
-    total_rows_with_special = (data['policy_id_has_special'] | data['card_has_special']).sum()
+    total_rows_with_special = (
+        data["policy_id_has_special"] | data["card_has_special"]
+    ).sum()
 
-    logger.debug(f'Total Errors: {total_rows_with_special} \n'
-                 f'Total Policy Number: {policy_id_special_count} \n'
-                 f'Total CC Number: {card_special_count}')
+    logger.debug(
+        f"Total Errors: {total_rows_with_special} \n"
+        f"Total Policy Number: {policy_id_special_count} \n"
+        f"Total CC Number: {card_special_count}"
+    )
     return total_rows_with_special
 
 
 def clean_data_before_tokenisation(
-        cc_numbers_to_tokenise: pd.DataFrame
+    cc_numbers_to_tokenise: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Clean the data before tokenisation.
     :param cc_numbers_to_tokenise: DataFrame containing the data to be cleaned
     :return: Cleaned DataFrame
     """
-    logger.info(f'******** : Checking Data to Tokenise : ********')
+    logger.info("******** : Checking Data to Tokenise : ********")
     # cc_numbers_to_tokenise = remove_white_spaces(cc_numbers_to_tokenise)
     cc_numbers_to_tokenise = fix_cc_length_issues(cc_numbers_to_tokenise)
 
     return cc_numbers_to_tokenise
+
 
 def remove_white_spaces(cc_numbers_to_tokenise):
     """
@@ -149,8 +148,8 @@ def remove_white_spaces(cc_numbers_to_tokenise):
     :param cc_numbers_to_tokenise: DataFrame containing the data to be cleaned
     :return: Cleaned DataFrame
     """
-    logger.debug('Removing White spaces from credit card numbers')
-    #TODO: Complete functionality
+    logger.debug("Removing White spaces from credit card numbers")
+    # TODO: Complete functionality
 
 
 def fix_cc_length_issues(df: pd.DataFrame) -> pd.DataFrame:
@@ -158,16 +157,12 @@ def fix_cc_length_issues(df: pd.DataFrame) -> pd.DataFrame:
     Pad all credit-card numbers to 16 digits in a new
     `clean_credit_card_number` column (leaves originals untouched).
     """
-    df["clean_credit_card_number"] = (
-        df["credit_card_number"].astype(str).str.zfill(16)
-    )
+    df["clean_credit_card_number"] = df["credit_card_number"].astype(str).str.zfill(16)
     return df
 
 
 def main(
-        run_type: str = "SIM",
-        encryption_method: str = "FPE",
-        sample_size: int = 18_000
+    run_type: str = "SIM", encryption_method: str = "FPE", sample_size: int = 18_000
 ) -> None:
     """
     Driver function; supports SIMulated data only for now.
@@ -181,11 +176,15 @@ def main(
         return
 
     # --- generate synthetic data ---
-    cc_numbers_to_tokenise = simulated_data.create_data_to_be_tokenised(sample_size=sample_size)
+    cc_numbers_to_tokenise = simulated_data.create_data_to_be_tokenised(
+        sample_size=sample_size
+    )
     cc_numbers_to_tokenise = clean_data_before_tokenisation(cc_numbers_to_tokenise)
 
     if encryption_method.upper() == "FPE":
-        _ = fpe_encryption.format_preserving_encryption_tokenisation(cc_numbers_to_tokenise, FPE_KEY)
+        _ = fpe_encryption.format_preserving_encryption_tokenisation(
+            cc_numbers_to_tokenise, FPE_KEY
+        )
     elif encryption_method.upper() == "AES":
         # NOTE: aes_cc_tokenisation processes the DataFrame row‑wise
         _ = aes_encryption.aes_cc_tokenisation(cc_numbers_to_tokenise)
@@ -193,5 +192,5 @@ def main(
         logger.error("Invalid encryption_method; choose FPE or AES.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

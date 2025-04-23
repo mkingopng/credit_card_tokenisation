@@ -4,20 +4,24 @@ Generate synthetic policy IDs, credit-card numbers, and expiry dates
 for tokenisation demos or tests.
 """
 from __future__ import annotations
+
 import random
 from datetime import datetime, timedelta
+
 import pandas as pd
+
 from src.logger_config import setup_logger
 
-
-POLICY_LEN   = 9
-PAN_LENGTHS  = (14, 15, 16)
+POLICY_LEN = 9
+PAN_LENGTHS = (14, 15, 16)
 EXPIRY_YEARS = 5
 
 logger = setup_logger(__name__)
 
 
-def create_data_to_be_tokenised(sample_size: int, seed: int | None = None) -> pd.DataFrame:
+def create_data_to_be_tokenised(
+    sample_size: int, seed: int | None = None
+) -> pd.DataFrame:
     """
     Generate sample_size dummy records.
     :param sample_size: Number of rows to create
@@ -35,11 +39,12 @@ def create_data_to_be_tokenised(sample_size: int, seed: int | None = None) -> pd
 
 # ---------- helpers ----------
 
+
 def _generate_policy_id() -> str:
     """
     Generate a random policy ID with a length of 9 digits.
     """
-    return ''.join(random.choices('0123456789', k=POLICY_LEN))
+    return "".join(random.choices("0123456789", k=POLICY_LEN))
 
 
 def _generate_credit_card_number() -> str:
@@ -47,7 +52,7 @@ def _generate_credit_card_number() -> str:
     Generate a random credit card number with a length of 14, 15, or 16 digits.
     :return: Credit card number as a string
     """
-    return ''.join(random.choices('0123456789', k=random.choice(PAN_LENGTHS)))
+    return "".join(random.choices("0123456789", k=random.choice(PAN_LENGTHS)))
 
 
 def _generate_expiration_date() -> str:

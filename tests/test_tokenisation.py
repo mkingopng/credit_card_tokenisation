@@ -4,11 +4,12 @@ test tokenisation
 """
 import base64
 import re
+
 import pytest
-from src import simulated_data
-from src import aes_encryption
-from src import fpe_encryption
+
+from src import aes_encryption, fpe_encryption
 from src import main as main_mod
+from src import simulated_data
 
 
 @pytest.fixture(scope="module")
@@ -26,7 +27,11 @@ def test_simulated_data_structure(sample_df):
     :param sample_df: DataFrame with credit card numbers
     :return: None
     """
-    assert set(sample_df.columns) == {"policy_id", "credit_card_number", "expiration_date"}
+    assert set(sample_df.columns) == {
+        "policy_id",
+        "credit_card_number",
+        "expiration_date",
+    }
     # basic sanity checks
     assert len(sample_df) == 5
     assert sample_df["policy_id"].str.len().eq(9).all()
@@ -67,7 +72,9 @@ def test_fpe_token_length(sample_df):
     :return: None
     """
     df = main_mod.fix_cc_length_issues(sample_df.copy())
-    tokenised = fpe_encryption.format_preserving_encryption_tokenisation(df, b"mysecretkey12345")
+    tokenised = fpe_encryption.format_preserving_encryption_tokenisation(
+        df, b"mysecretkey12345"
+    )
     assert tokenised["fpe_token"].str.len().eq(fpe_encryption.TOKEN_LEN).all()
     # Ensure tokens are numeric to satisfy format‑preservation promise
     numeric_re = re.compile(r"^\d+$")

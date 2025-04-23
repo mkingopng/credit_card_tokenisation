@@ -3,15 +3,18 @@
 
 """
 from __future__ import annotations
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.backends import default_backend
-from .logger_config import setup_logger
-from tqdm import tqdm
-import os
+
 import base64
+import os
 from typing import ByteString
+
 import pandas as pd
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from tqdm import tqdm
+
+from .logger_config import setup_logger
 
 tqdm.pandas()
 logger = setup_logger(__name__)
@@ -27,15 +30,21 @@ def aes_cc_tokenisation(cc_numbers_to_tokenise: pd.DataFrame) -> pd.DataFrame:
     :param cc_numbers_to_tokenise: DataFrame containing credit card numbers to be tokenised
     :return: DataFrame with tokenised credit card numbers
     """
-    logger.info(f'******** : AES Tokenisation : ********')
-    cc_numbers_to_tokenise['aes_token'] = cc_numbers_to_tokenise[
-        'clean_credit_card_number'].apply(lambda x: encrypt_cc_number(x))
-    logger.debug(cc_numbers_to_tokenise[[
-        'credit_card_number','clean_credit_card_number','aes_token']].head(10))
+    logger.info("******** : AES Tokenisation : ********")
+    cc_numbers_to_tokenise["aes_token"] = cc_numbers_to_tokenise[
+        "clean_credit_card_number"
+    ].apply(lambda x: encrypt_cc_number(x))
+    logger.debug(
+        cc_numbers_to_tokenise[
+            ["credit_card_number", "clean_credit_card_number", "aes_token"]
+        ].head(10)
+    )
     return cc_numbers_to_tokenise
 
 
-def encrypt_cc_number(cc_number: str, key: ByteString | bytes | bytearray | None = None) -> str:
+def encrypt_cc_number(
+    cc_number: str, key: ByteString | bytes | bytearray | None = None
+) -> str:
     """
     Encrypts a credit card number using AES encryption.
     :param cc_number: Credit card number to encrypt
@@ -58,11 +67,7 @@ def encrypt_cc_number(cc_number: str, key: ByteString | bytes | bytearray | None
     iv = os.urandom(IV_BYTES)
 
     # AES-CBC encrypt
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
 
     ciphertext = cipher.encryptor().update(padded) + cipher.encryptor().finalize()
 
@@ -84,11 +89,7 @@ def decrypt_cc_number(token: str, key: ByteString | bytes | bytearray) -> str:
     token_bytes = base64.b64decode(token)
     iv, ciphertext = token_bytes[:IV_BYTES], token_bytes[IV_BYTES:]
 
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
 
     decryptor = cipher.decryptor()
     padded = decryptor.update(ciphertext) + decryptor.finalize()

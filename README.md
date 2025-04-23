@@ -72,3 +72,4 @@ have to decide if they are appropriate for you. Happy to discuss
   other coders and are going t run it from their own IDE then that's fine, 
   but if you want to deploy it to cloud or package as an .exe file, then we 
   need to build that out.
+- **exception handling**: need more. I've added a little
